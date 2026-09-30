@@ -79,7 +79,7 @@ fun OnboardingScreen(
     val colors = LocalAppColors.current
     val pagerState = rememberPagerState(pageCount = { PAGE_COUNT })
     val scope = rememberCoroutineScope()
-    val isLast = pagerState.currentPage == LAST_PAGE
+    val isLast = pagerState.targetPage == LAST_PAGE
 
     fun goTo(page: Int) = scope.launch { pagerState.animateScrollToPage(page) }
 
@@ -180,9 +180,9 @@ fun OnboardingScreen(
             // ── Bottom action bar ─────────────────────────────────────────────
             BottomBar(
                 isLast = isLast,
-                showBack = pagerState.currentPage > 0,
-                onBack = { goTo(pagerState.currentPage - 1) },
-                onCta = { if (isLast) onFinish() else goTo(pagerState.currentPage + 1) },
+                showBack = pagerState.targetPage > 0,
+                onBack = { goTo(pagerState.targetPage - 1) },
+                onCta = { if (isLast) onFinish() else goTo(pagerState.targetPage + 1) },
                 onLoginClick = onLoginClick
             )
         }

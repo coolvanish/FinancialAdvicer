@@ -250,9 +250,13 @@ fun ScenarioCanvas(
         )
     }
 
-    // Auto-fit exactly once (first non-zero size with a non-empty graph); window
-    // resizes never yank the viewport away from the user afterwards.
-    LaunchedEffect(state.canvasSize, analysis.nodes.isEmpty()) {
+    // When the analysis itself changes (new scenario loaded), reset the guard so the
+    // new graph gets auto-fitted once regardless of canvas size staying the same.
+    LaunchedEffect(analysis) { state.didAutoFit = false }
+
+    // Auto-fit exactly once per analysis (first non-zero canvas size); window resizes
+    // after the initial fit never yank the viewport away from the user.
+    LaunchedEffect(state.canvasSize, analysis) {
         if (!state.didAutoFit && state.canvasSize.width > 0 && analysis.nodes.isNotEmpty()) {
             fitToContent()
             state.didAutoFit = true
