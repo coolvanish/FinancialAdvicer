@@ -111,10 +111,11 @@ class GameEngineUnitTest {
 
     @Test
     fun `loadState advances msgSeq so new message ids do not collide with restored ones`() {
-        val engine = GameEngine(graph = SimpleGraph())
-        val initial = engine.startGame(characterName = "Test")
-
-        // Play a few turns to produce messages with non-trivial sequence suffixes
+        val testGraph = SimpleGraph()
+        // Provide a resolveGraph that returns the same test graph, avoiding ScenarioNotFoundException
+        // when loadState() calls ScenarioGraphFactory for the "test"/"test" ids.
+        val engine = GameEngine(graph = testGraph, resolveGraph = { _, _ -> testGraph })
+        engine.startGame(characterName = "Test")
         val afterChoice = engine.makeChoice("go_choice")
 
         // Save state then restore it; new messages after restore must have higher IDs
