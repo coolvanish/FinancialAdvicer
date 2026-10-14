@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kz.fearsom.financiallifev2.data.AchievementsRepository
 import kz.fearsom.financiallifev2.data.GameSessionRepository
+import kz.fearsom.financiallifev2.data.SeedData
 import kz.fearsom.financiallifev2.engine.GameEngine
 import kz.fearsom.financiallifev2.i18n.Strings
 import kz.fearsom.financiallifev2.model.EndingType
@@ -202,11 +203,12 @@ class GamePresenter(
         activeSessionId = null
         scope.launch {
             val defaultStart = ScenarioGraphFactory.forCharacter("era_kz_2024", "kz_2024").initialPlayerState
+            val defaultChar = SeedData.predefinedCharacters.find { it.id == "asan" }
             _uiState.value = _uiState.value.copy(
                 isTyping       = true,
                 characterName  = Strings.sysDefaultCharacterName,
-                characterEmoji = "🛒",
-                characterTitle = "Менеджер маркетплейса",
+                characterEmoji = defaultChar?.emoji ?: "🛒",
+                characterTitle = defaultChar?.profession ?: "",
                 gameStartYear  = defaultStart.year,
                 gameStartMonth = defaultStart.month
             )
@@ -218,6 +220,8 @@ class GamePresenter(
     }
 
     fun onChoiceSelected(optionId: String) {
+        // Guard against double-submission: drop the call if a choice is already being processed.
+        if (_uiState.value.isTyping) return
         scope.launch {
             _uiState.value = _uiState.value.copy(isTyping = true, currentOptions = emptyList())
             delay(1400)
@@ -241,10 +245,11 @@ class GamePresenter(
             )
             engine.relocalizeCurrentState(session.characterName)
         } else {
+            val defaultChar = SeedData.predefinedCharacters.find { it.id == "asan" }
             _uiState.value = _uiState.value.copy(
-                characterName = Strings.sysDefaultCharacterName,
-                characterEmoji = "🛒",
-                characterTitle = "Менеджер маркетплейса"
+                characterName  = Strings.sysDefaultCharacterName,
+                characterEmoji = defaultChar?.emoji ?: "🛒",
+                characterTitle = defaultChar?.profession ?: ""
             )
             engine.relocalizeCurrentState(Strings.sysDefaultCharacterName)
         }
