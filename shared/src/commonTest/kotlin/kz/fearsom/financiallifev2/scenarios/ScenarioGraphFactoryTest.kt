@@ -32,10 +32,10 @@ class ScenarioGraphFactoryTest {
     @Test
     fun `each era exposes the current predefined characters`() {
         val expected = mapOf(
-            "kz_90s" to listOf("aidar_90s", "daniyar_90s"),
+            "kz_90s" to listOf("aidar_90s", "daniyar_90s", "aigul_90s"),
             "kz_2005" to listOf("aidar", "daniyar", "serik"),
-            "kz_2015" to listOf("dana"),
-            "kz_2024" to listOf("asan")
+            "kz_2015" to listOf("dana", "marat_2015"),
+            "kz_2024" to listOf("asan", "aidana_2024", "timur_2024")
         )
         SeedData.eras.forEach { era ->
             assertEquals(expected.getValue(era.id), era.availableCharacterIds)
