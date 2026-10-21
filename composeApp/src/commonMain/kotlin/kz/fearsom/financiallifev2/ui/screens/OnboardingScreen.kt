@@ -782,7 +782,11 @@ private fun Subtitle(text: String, bottomPadding: Dp) {
 /** Renders `**…**` emphasis spans inside a localized string with [bold] applied. */
 private fun boldMarkup(text: String, bold: SpanStyle): AnnotatedString =
     buildAnnotatedString {
-        text.split("**").forEachIndexed { i, segment ->
+        val parts = text.split("**")
+        // Odd-length split means unmatched delimiter; treat trailing segment as plain text.
+        val safeCount = if (parts.size % 2 == 0) parts.size - 1 else parts.size
+        parts.take(safeCount).forEachIndexed { i, segment ->
             if (i % 2 == 1) withStyle(bold) { append(segment) } else append(segment)
         }
+        if (parts.size % 2 == 0) append(parts.last())
     }
