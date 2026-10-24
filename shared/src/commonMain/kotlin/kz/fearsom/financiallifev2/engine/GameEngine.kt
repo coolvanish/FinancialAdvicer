@@ -449,8 +449,10 @@ class GameEngine(
     private fun applyMonetaryReform(ps: PlayerState, reform: MonetaryReform): PlayerState {
         if (ps.currency != reform.from || reform.numerator <= 0L || reform.denominator <= 0L) return ps
 
+        // Use Double to avoid Long overflow when numerator is large (e.g. 500:1 redenomination).
+        // Game amounts stay well within Double's ~15-digit precision.
         fun reprice(amount: Long): Long =
-            ((amount * reform.numerator) / reform.denominator).coerceAtLeast(0L)
+            (amount.toDouble() * reform.numerator / reform.denominator).toLong().coerceAtLeast(0L)
 
         return ps.copy(
             capital = reprice(ps.capital),
