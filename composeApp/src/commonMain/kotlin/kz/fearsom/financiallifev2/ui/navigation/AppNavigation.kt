@@ -244,7 +244,10 @@ fun AppNavigation() {
                             backStack = listOf(AppScreen.MainMenu)
                         },
                         onLoginClick = {
-                            onboardingRepo.markCompleted()
+                            // Do NOT mark completed here — the user hasn't logged in yet.
+                            // markCompleted() is called only in onFinish (after finishing the
+                            // flow) so that a user who dismisses login without signing in
+                            // still sees onboarding on next cold-start.
                             navForward = true
                             backStack = listOf(AppScreen.MainMenu, AppScreen.Login)
                         }

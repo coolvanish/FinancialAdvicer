@@ -133,7 +133,9 @@ fun analyzeScenario(dto: ScenarioGraphDto, selfContained: Boolean = false): Scen
         edges.groupBy { it.fromId }.mapValues { (_, es) -> es.map { it.toId } }
 
     // ── Root: prefer "intro", else an event with no incoming edge, else first ─
-    val targeted = edges.map { it.toId }.toSet()
+    // Only count edges FROM main events when computing targeted: edges from
+    // conditional events must not disqualify a main event from being elected root.
+    val targeted = edges.filter { it.fromId in byId }.map { it.toId }.toSet()
     val rootId = when {
         "intro" in byId -> "intro"
         else -> events.firstOrNull { it.id !in targeted }?.id ?: events.first().id
