@@ -179,6 +179,9 @@ fun AppNavigation() {
     LaunchedEffect(authUiState.authState.isLoggedIn) {
         if (authUiState.authState.isLoggedIn) {
             if (backStack.lastOrNull() == AppScreen.Login) {
+                // A successful login always means the user is past onboarding — mark it
+                // complete so the splash exit never re-routes to Onboarding on cold start.
+                onboardingRepo.markCompleted()
                 navForward = true
                 backStack = listOf(AppScreen.MainMenu)
             }

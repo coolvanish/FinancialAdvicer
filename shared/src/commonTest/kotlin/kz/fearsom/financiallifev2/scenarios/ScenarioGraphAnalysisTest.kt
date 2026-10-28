@@ -102,10 +102,10 @@ class ScenarioGraphAnalysisTest {
         val intro = event("intro", "end")
         val end = event("end")
         val orphan = event("orphan")   // not reachable from intro, not in pool
-        val result = analyzeScenario(dto(listOf(intro, end, orphan)), selfContained = true)
+        val result = analyzeScenario(dto(listOf(intro, end, orphan)), selfContained = false)
         assertTrue(
-            result.warnings.any { it.severity == GraphWarning.Severity.ERROR || it.severity == GraphWarning.Severity.WARNING },
-            "Expected a warning about the unreachable event 'orphan'"
+            result.warnings.any { it.severity == GraphWarning.Severity.WARN && it.eventId == "orphan" },
+            "Expected a WARN-level warning specifically for 'orphan'"
         )
     }
 
@@ -119,5 +119,53 @@ class ScenarioGraphAnalysisTest {
         val result = analyzeScenario(dto(events = listOf(intro, end), conditional = listOf(cond)))
         val condToEnd = result.edges.firstOrNull { it.fromId == "cond" && it.toId == "end" }
         assertNotNull(condToEnd, "Edge from conditional 'cond' to main 'end' must be in result.edges")
+    }
+
+    // ── 8. Conditional event targeting a *non-intro* root must not block election ─
+    //       This is the real regression test for the conditional-edge fix: "intro" always
+    //       wins the when-branch before the fix is needed, so test #2 never actually
+    //       exercises the targeted-set logic. This test removes "intro" so the fallback
+    //       election runs, and verifies the conditional edge does not disqualify the root.
+
+    @Test
+    fun `conditional event targeting non-intro root does not prevent correct root election`() {
+        // Graph: start → end.  Conditional event cond → start.
+        // Without the fix, edges.filter { it.fromId in byId } would *include* cond→start
+        // (cond is in byId only if we forget the filter), adding "start" to targeted and
+        // causing the fallback to pick "end" as root instead of "start".
+        val start = event("start", "end")
+        val end = event("end")
+        val cond = event("cond", "start")  // conditional event points to the natural root
+        val result = analyzeScenario(dto(events = listOf(start, end), conditional = listOf(cond)))
+        assertEquals("start", result.rootId,
+            "root must be 'start' — a conditional event pointing to it must not disqualify it")
+    }
+
+    // ── 9. Conditional events are assigned Band.SECONDARY (not Band.MAIN) ─────
+
+    @Test
+    fun `conditional events are placed in Band SECONDARY`() {
+        val intro = event("intro", "end")
+        val end = event("end")
+        val cond = event("cond")
+        val result = analyzeScenario(dto(events = listOf(intro, end), conditional = listOf(cond)))
+        val condNode = result.nodes.firstOrNull { it.event.id == "cond" }
+        assertNotNull(condNode, "conditional event must be present as a node")
+        assertEquals(Band.SECONDARY, condNode.band,
+            "conditional events must live in the SECONDARY band, not MAIN")
+    }
+
+    // ── 10. Duplicate event id across events and conditionalEvents is an ERROR ─
+
+    @Test
+    fun `duplicate event id across events and conditional events is an error`() {
+        val intro = event("intro", "end")
+        val end = event("end")
+        val dupCond = event("intro")  // same id as the main "intro" event
+        val result = analyzeScenario(dto(events = listOf(intro, end), conditional = listOf(dupCond)))
+        assertTrue(
+            result.warnings.any { it.severity == GraphWarning.Severity.ERROR && it.eventId == "intro" },
+            "Duplicate id 'intro' spanning events and conditionalEvents must produce an ERROR"
+        )
     }
 }
