@@ -783,7 +783,7 @@ private fun Subtitle(text: String, bottomPadding: Dp) {
 private fun boldMarkup(text: String, bold: SpanStyle): AnnotatedString =
     buildAnnotatedString {
         val parts = text.split("**")
-        // Odd-length split means unmatched delimiter; treat trailing segment as plain text.
+        // Even-length split means unmatched delimiter (odd number of "**"); treat trailing segment as plain text.
         val safeCount = if (parts.size % 2 == 0) parts.size - 1 else parts.size
         parts.take(safeCount).forEachIndexed { i, segment ->
             if (i % 2 == 1) withStyle(bold) { append(segment) } else append(segment)
