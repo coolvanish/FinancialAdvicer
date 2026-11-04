@@ -191,6 +191,86 @@ class AchievementEvaluatorTest {
         assertFalse(AchievementCatalog.SCAM_PONZI in second)
     }
 
+    // ── CalmThroughCrisis exact boundary ─────────────────────────────────────
+
+    @Test
+    fun iron_nerves_does_not_unlock_when_stress_equals_stressBelow_exactly() {
+        // The condition uses strict < for stressBelow=30, so stress=30 must NOT unlock.
+        val crisisPs = neutralState().copy(stress = 10, month = 1, year = 2024)
+        val crisisMsg = ChatMessage(
+            id = "char_crisis_boundary",
+            sender = MessageSender.CHARACTER,
+            sceneTag = "crisis",
+            sourcePlayerState = crisisPs
+        )
+
+        var facts = AchievementSessionFacts()
+        facts = facts.update(state(crisisPs, messages = listOf(crisisMsg)))
+
+        // Advance 12 months with stress sitting exactly at 30 (== stressBelow, not below it).
+        for (m in 2..13) {
+            val ps = crisisPs.copy(
+                stress = 30,
+                month = ((m - 1) % 12) + 1,
+                year = 2024 + (m - 1) / 12
+            )
+            val current = state(ps, messages = listOf(crisisMsg))
+            facts = facts.update(current)
+            if (m == 13) {
+                assertFalse(
+                    AchievementCatalog.IRON_NERVES in AchievementEvaluator.newlyUnlocked(current, facts, emptySet()),
+                    "stress == stressBelow (30) must not unlock iron_nerves (strict < required)"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun iron_nerves_window_resets_when_new_crisis_arrives() {
+        // First crisis at month 1 with high stress recorded — would normally block unlock.
+        val firstCrisisPs = neutralState().copy(stress = 50, month = 1, year = 2024)
+        val firstCrisisMsg = ChatMessage(
+            id = "char_crisis_first",
+            sender = MessageSender.CHARACTER,
+            sceneTag = "crisis",
+            sourcePlayerState = firstCrisisPs
+        )
+
+        var facts = AchievementSessionFacts()
+        facts = facts.update(state(firstCrisisPs, messages = listOf(firstCrisisMsg)))
+        // maxStressSinceCrisis = 50 → old window is "dirty"
+
+        // Second crisis arrives; window should reset and stress tracking restart.
+        val secondCrisisPs = neutralState().copy(stress = 10, month = 2, year = 2024)
+        val secondCrisisMsg = ChatMessage(
+            id = "char_crisis_second",
+            sender = MessageSender.CHARACTER,
+            sceneTag = "crisis",
+            sourcePlayerState = secondCrisisPs
+        )
+        facts = facts.update(state(secondCrisisPs, messages = listOf(firstCrisisMsg, secondCrisisMsg)))
+        // After reset: crisisStartAbsMonth = 2024*12+2, maxStress = 10
+
+        // Advance 12 calm months from the second crisis.
+        for (m in 3..14) {
+            val ps = secondCrisisPs.copy(
+                stress = 15,
+                month = ((m - 1) % 12) + 1,
+                year = 2024 + (m - 1) / 12
+            )
+            facts = facts.update(state(ps, messages = listOf(firstCrisisMsg, secondCrisisMsg)))
+        }
+
+        val finalPs = secondCrisisPs.copy(stress = 15, month = 2, year = 2025)
+        val finalState = state(finalPs, messages = listOf(firstCrisisMsg, secondCrisisMsg))
+        facts = facts.update(finalState)
+
+        assertTrue(
+            AchievementCatalog.IRON_NERVES in AchievementEvaluator.newlyUnlocked(finalState, facts, emptySet()),
+            "iron_nerves should unlock after 12 calm months from the second crisis (window reset)"
+        )
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**

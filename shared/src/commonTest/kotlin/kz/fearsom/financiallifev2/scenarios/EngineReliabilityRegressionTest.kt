@@ -92,6 +92,34 @@ class EngineReliabilityRegressionTest {
         assertEquals(5_000L, next.messages.last { it.monthlyReport != null }.monthlyReport?.debtPayment)
     }
 
+    @Test
+    fun `scheduling an event in December wraps correctly to January of the next year`() {
+        val engine = GameEngine(graph = DecemberSchedulingGraph())
+        engine.startGame(characterName = "Test")
+
+        // The choice schedules "future_event" with afterMonths=1 from December 2024.
+        // The monthly tick then advances the state to January 2025 (absoluteMonth=24301),
+        // which exactly matches the scheduled event's fireAtYear=2025 / fireAtMonth=1.
+        // So the event must fire in that same tick — confirming the year-wrap is correct.
+        val afterSchedule = engine.makeChoice("schedule_in_december")
+        assertEquals("future_event", afterSchedule.currentEventId,
+            "December + 1 month must wrap to January 2025, causing future_event to fire in the first tick")
+        assertTrue(afterSchedule.playerState.pendingScheduled.isEmpty(),
+            "pending event must be consumed after firing")
+    }
+
+    @Test
+    fun `makeChoice with unknown optionId returns unchanged state`() {
+        val engine = GameEngine(graph = SimpleGraph())
+        val initial = engine.startGame(characterName = "Test")
+
+        val after = engine.makeChoice("nonexistent_option_id")
+
+        assertEquals(initial.currentEventId, after.currentEventId, "event must not change")
+        assertEquals(initial.playerState, after.playerState, "player state must not change")
+        assertEquals(initial.messages.size, after.messages.size, "message count must not change")
+    }
+
     private class ScheduledVsEraGraph : ScenarioGraph() {
         override val initialPlayerState = PlayerState(characterId = "test", eraId = "test", month = 1, year = 2024)
 
@@ -196,6 +224,72 @@ class EngineReliabilityRegressionTest {
         override val events = mapOf(
             "intro" to GameEvent("intro", "intro", options = listOf(GameOption("tick", "Tick", "", Effect(), MONTHLY_TICK))),
             "normal_life" to GameEvent("normal_life", "normal", options = listOf(GameOption("tick_normal", "Tick", "", Effect(), MONTHLY_TICK)))
+        )
+
+        override val conditionalEvents = emptyList<GameEvent>()
+        override val eventPool = emptyList<PoolEntry>()
+    }
+
+    private class DecemberSchedulingGraph : ScenarioGraph() {
+        override val initialPlayerState = PlayerState(
+            characterId = "test",
+            eraId = "test",
+            month = 12,
+            year = 2024,
+            capital = 100_000L,
+            income = 100_000L,
+            expenses = 50_000L,
+            debt = 0L,
+            debtPaymentMonthly = 0L
+        )
+
+        override val events = mapOf(
+            "intro" to GameEvent(
+                id = "intro",
+                message = "intro",
+                options = listOf(
+                    GameOption(
+                        "schedule_in_december", "Schedule", "",
+                        Effect(scheduleEvent = ScheduledEvent("future_event", afterMonths = 1)),
+                        MONTHLY_TICK
+                    )
+                )
+            ),
+            "future_event" to GameEvent(
+                id = "future_event",
+                message = "future",
+                options = listOf(GameOption("done", "Done", "", Effect(), "intro"))
+            ),
+            "normal_life" to GameEvent(
+                id = "normal_life",
+                message = "normal",
+                options = listOf(GameOption("tick_normal", "Tick", "", Effect(), MONTHLY_TICK))
+            )
+        )
+
+        override val conditionalEvents = emptyList<GameEvent>()
+        override val eventPool = emptyList<PoolEntry>()
+    }
+
+    private class SimpleGraph : ScenarioGraph() {
+        override val initialPlayerState = PlayerState(
+            characterId = "test",
+            eraId = "test",
+            month = 1,
+            year = 2024
+        )
+
+        override val events = mapOf(
+            "intro" to GameEvent(
+                id = "intro",
+                message = "intro",
+                options = listOf(GameOption("go", "Go", "", Effect(), "normal_life"))
+            ),
+            "normal_life" to GameEvent(
+                id = "normal_life",
+                message = "normal",
+                options = listOf(GameOption("tick", "Tick", "", Effect(), MONTHLY_TICK))
+            )
         )
 
         override val conditionalEvents = emptyList<GameEvent>()
